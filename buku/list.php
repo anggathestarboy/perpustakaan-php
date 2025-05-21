@@ -1,12 +1,12 @@
 <?php
 include '../koneksi.php';
-
 session_start();
 
 if (!isset($_SESSION['username'])) {
     header("Location: ../login.php");
 }
 
+// Handle form simpan perubahan buku
 if (isset($_POST['simpan'])) {
     $kode_b = $_POST['kode_b'];
     $judul_buku = $_POST['judul_buku'];
@@ -26,6 +26,7 @@ if (isset($_POST['simpan'])) {
     exit;
 }
 
+// Handle hapus
 if (isset($_GET['hapus'])) {
     $kode_b = $_GET['hapus'];
     mysqli_query($koneksi, "DELETE FROM buku WHERE kode_b='$kode_b'");
@@ -33,9 +34,17 @@ if (isset($_GET['hapus'])) {
     exit;
 }
 
-$data = mysqli_query($koneksi, "SELECT * FROM buku");
+// Tangkap keyword search
+$keyword = isset($_GET['search']) ? $_GET['search'] : '';
 
-// Ambil data buku untuk diedit jika ada parameter edit
+// Query data buku dengan filter pencarian
+$query = "SELECT * FROM buku";
+if (!empty($keyword)) {
+    $query .= " WHERE judul_buku LIKE '%$keyword%'";
+}
+$data = mysqli_query($koneksi, $query);
+
+// Mode edit
 $edit_mode = false;
 if (isset($_GET['edit'])) {
     $edit_mode = true;
@@ -99,6 +108,14 @@ if (isset($_GET['edit'])) {
             max-width: 100px;
             height: auto;
         }
+        .btn-warning {
+            background-color: orange;
+            border: none;
+            color: white;
+        }
+        .btn-warning:hover {
+            background-color: darkorange;
+        }
     </style>
 </head>
 <body>
@@ -109,7 +126,7 @@ if (isset($_GET['edit'])) {
     <a href="list.php">📘 Rak Buku</a>
     <a href="../peminjam/list.php">👨 Peminjam</a>
     <a href="../peminjaman/tambah.php">📌 Peminjaman Baru</a>
-   <a href="../logout.php">🚪 Logout</a>
+    <a href="../logout.php">🚪 Logout</a>
 </div>
 
 <div class="main-content">
@@ -139,7 +156,13 @@ if (isset($_GET['edit'])) {
 
     <div class="card shadow mt-4">
         <div class="card-body">
-            <a href="tambah.php" class="btn btn-primary mb-3">+ Tambah Buku</a>
+            <div class="d-flex justify-content-between mb-3">
+                <a href="tambah.php" class="btn btn-primary">+ Tambah Buku</a>
+                <form method="get" class="d-flex">
+                    <input type="text" name="search" class="form-control me-2" placeholder="Cari judul buku..." value="<?= htmlspecialchars($keyword) ?>">
+                    <button type="submit" class="btn btn-primary">Cari</button>
+                </form>
+            </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-hover">
                     <thead>
@@ -151,17 +174,23 @@ if (isset($_GET['edit'])) {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php while ($d = mysqli_fetch_array($data)) { ?>
-                        <tr>
-                            <td><?= $d['kode_b']; ?></td>
-                            <td><?= $d['judul_buku']; ?></td>
-                            <td><img src="../gambar/<?= $d['gambar']; ?>" class="img-thumbnail" alt="Gambar Buku"></td>
-                            <td>
-                                <a href="?edit=<?= $d['kode_b'] ?>" class="btn btn-sm btn-warning">Edit</a>
-                                <a href="?hapus=<?= $d['kode_b'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin hapus buku ini?')">Hapus</a>
-                            </td>
-                        </tr>
-                        <?php } ?>
+                        <?php if (mysqli_num_rows($data) > 0): ?>
+                            <?php while ($d = mysqli_fetch_array($data)) { ?>
+                            <tr>
+                                <td><?= $d['kode_b']; ?></td>
+                                <td><?= $d['judul_buku']; ?></td>
+                                <td><img src="../gambar/<?= $d['gambar']; ?>" class="img-thumbnail" alt="Gambar Buku"></td>
+                                <td>
+                                    <a href="?edit=<?= $d['kode_b'] ?>" class="btn btn-sm btn-warning">Edit</a>
+                                    <a href="?hapus=<?= $d['kode_b'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin hapus buku ini?')">Hapus</a>
+                                </td>
+                            </tr>
+                            <?php } ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="4" class="text-center">Tidak ada data ditemukan.</td>
+                            </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>

@@ -1,12 +1,14 @@
 <?php
 include '../koneksi.php';
-
 session_start();
 
+// Cek login
 if (!isset($_SESSION['username'])) {
     header("Location: ../login.php");
+    exit;
 }
 
+// Simpan perubahan
 if (isset($_POST['simpan'])) {
     $no_anggota = $_POST['no_anggota'];
     $nm_peminjam = $_POST['nm_peminjam'];
@@ -16,6 +18,7 @@ if (isset($_POST['simpan'])) {
     exit;
 }
 
+// Hapus data
 if (isset($_GET['hapus'])) {
     $no_anggota = $_GET['hapus'];
     mysqli_query($koneksi, "DELETE FROM peminjam WHERE no_anggota='$no_anggota'");
@@ -23,16 +26,27 @@ if (isset($_GET['hapus'])) {
     exit;
 }
 
+// Mode edit
 $edit_mode = false;
 if (isset($_GET['edit'])) {
     $edit_mode = true;
     $no_edit = $_GET['edit'];
     $peminjam = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT * FROM peminjam WHERE no_anggota='$no_edit'"));
 }
+
+// Pencarian
+$keyword = '';
+if (isset($_GET['cari'])) {
+    $keyword = $_GET['cari'];
+    $query = "SELECT * FROM peminjam WHERE no_anggota LIKE '%$keyword%' OR nm_peminjam LIKE '%$keyword%'";
+} else {
+    $query = "SELECT * FROM peminjam";
+}
+$data = mysqli_query($koneksi, $query);
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -110,12 +124,13 @@ if (isset($_GET['edit'])) {
     <a href="../buku/list.php">📘 Rak Buku</a>
     <a href="list.php">👨 Peminjam</a>
     <a href="../peminjaman/tambah.php">📌 Peminjaman Baru</a>
-   <a href="../logout.php">🚪 Logout</a>
+    <a href="../logout.php">🚪 Logout</a>
 </div>
 
 <div class="main-content">
     <h2>Data Peminjam</h2>
 
+    <!-- Form Edit -->
     <?php if ($edit_mode): ?>
     <div class="card shadow mb-4">
         <div class="card-body">
@@ -132,7 +147,21 @@ if (isset($_GET['edit'])) {
     </div>
     <?php endif; ?>
 
+    <!-- Form Pencarian -->
+    <form class="mb-3" method="get">
+        <div class="input-group">
+            <input type="text" name="cari" class="form-control" placeholder="Cari peminjam..." value="<?= htmlspecialchars($keyword) ?>">
+            <button class="btn btn-primary" type="submit">Cari</button>
+            <?php if ($keyword != ''): ?>
+                <a href="list.php" class="btn btn-secondary">Reset</a>
+            <?php endif; ?>
+        </div>
+    </form>
+
+    <!-- Tombol Tambah -->
     <a href="tambah.php" class="btn btn-primary btn-tambah">+ Tambah Peminjam</a>
+
+    <!-- Tabel -->
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -142,19 +171,24 @@ if (isset($_GET['edit'])) {
             </tr>
         </thead>
         <tbody>
-            <?php
-            $data = mysqli_query($koneksi, "SELECT * FROM peminjam");
-            while ($d = mysqli_fetch_array($data)) {
-                echo "<tr>
-                        <td>{$d['no_anggota']}</td>
-                        <td>{$d['nm_peminjam']}</td>
-                        <td>
-                            <a href='?edit={$d['no_anggota']}' class='btn btn-warning btn-sm'>Edit</a>
-                            <a href='?hapus={$d['no_anggota']}' class='btn btn-danger btn-sm' onclick='return confirm(\"Yakin hapus data ini?\")'>Hapus</a>
-                        </td>
-                    </tr>";
-            }
+            <?php while ($d = mysqli_fetch_array($data)) : 
+                $highlight_nis = $d['no_anggota'];
+                $highlight_nama = $d['nm_peminjam'];
+
+                if ($keyword != '') {
+                    $highlight_nis = preg_replace("/(" . preg_quote($keyword, '/') . ")/i", "<mark>$1</mark>", $highlight_nis);
+                    $highlight_nama = preg_replace("/(" . preg_quote($keyword, '/') . ")/i", "<mark>$1</mark>", $highlight_nama);
+                }
             ?>
+                <tr>
+                    <td><?= $highlight_nis ?></td>
+                    <td><?= $highlight_nama ?></td>
+                    <td>
+                        <a href="?edit=<?= $d['no_anggota'] ?>" class="btn btn-warning btn-sm">Edit</a>
+                        <a href="?hapus=<?= $d['no_anggota'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin hapus data ini?')">Hapus</a>
+                    </td>
+                </tr>
+            <?php endwhile; ?>
         </tbody>
     </table>
 </div>
